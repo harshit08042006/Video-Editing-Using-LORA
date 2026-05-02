@@ -1,6 +1,6 @@
 # Foreground Motion Editing with Background Preservation using Dual-LoRA Inference
 
-> **Built on top of [LoRA-Edit](https://github.com/cjeen/LoRAEdit)** — we extend the original pipeline with a dual-LoRA inference strategy that enables high-quality foreground motion transfer from AI-generated videos while preserving the exact background trajectory of the original video.
+> **Built on top of [LoRA-Edit](https://github.com/cjeen/LoRAEdit)** — we extend the original pipeline with a dual-LoRA inference strategy that enables high-quality foreground motion transfer from I2V-generated videos (containing the desired foreground motion) while preserving the exact background trajectory of the original video.
 
 ---
 
@@ -14,7 +14,7 @@ Our method addresses a key limitation of existing I2V editing pipelines: **gener
 
 | Component | Role |
 |-----------|------|
-| **LoRA 1** | Trained on the **masked foreground of the AI-generated video** — learns the desired edited motion |
+| **LoRA 1** | Trained on the **masked foreground of the I2V-generated video** (which contains the desired foreground motion) — learns the target motion |
 | **LoRA 2** | Trained on the **masked foreground of the original video** — learns original scene motion |
 | **Dual-LoRA Inference** | Both LoRAs run simultaneously; outputs are blended using a Gaussian-smoothed mask at each transformer block and denoising step |
 
@@ -125,11 +125,11 @@ NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" \
 
 ---
 
-### Phase B — Process the AI-Generated / Edited Video (LoRA 1)
+### Phase B — Process the I2V Reference Video (LoRA 1)
 
-**Step B-1: Generate the Motion Reference Video**
+**Step B-1: Generate the I2V Reference Video**
 
-Use any Image-to-Video model (WAN 2.1, VEO, etc.) with the **first frame of the original video + your edit prompt** to generate a motion reference video.
+Use any Image-to-Video (I2V) model (WAN 2.1, VEO, etc.) with the **first frame of the original video + your edit prompt** to generate a video that contains the desired foreground motion. This video is used **only as a motion reference** — not as the final output.
 
 > Example prompt: *"make the man in the purple shirt remove his specs"*
 
