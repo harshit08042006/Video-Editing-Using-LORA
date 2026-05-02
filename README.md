@@ -101,19 +101,57 @@ wget https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.p
 
 ## 🚀 Full Pipeline
 
-### Phase A — Process the Original Video (LoRA 2)
+### Phase A — Process the I2V Reference Video (LoRA 1)
 
-**Step A-1: Foreground Selection & Data Preprocessing**
+**Step A-1: Generate the I2V Reference Video**
 
-Launch the interactive segmentation interface and upload your **original video**. Select the foreground object you want to keep/transfer motion from.
+Use any Image-to-Video (I2V) model (WAN 2.1, VEO, etc.) with the **first frame of the original video + your edit prompt** to generate a video that contains the desired foreground motion. This video is used **only as a motion reference** — not as the final output.
+
+> Example prompt: *"make the man in the purple shirt remove his specs"*
+
+**Step A-2: Foreground Selection & Data Preprocessing**
+
+Launch the preprocessing interface and upload the **I2V-generated video**. Select the foreground object (the one performing the desired motion).
 
 ```bash
 python predata_app.py --port 8890 --checkpoint_dir models_sam/sam2_hiera_large.pt
 ```
 
-The interface will auto-generate the training command. Run it:
+**Step A-3: Set the Inference Prompt**
 
-**Step A-2: LoRA 2 Training**
+After preprocessing, write your edit prompt into the `prefix.txt` file inside the generated sequence folder. This prompt is used during dual-LoRA inference.
+
+```bash
+# Example:
+echo "Generate a video in which man in purple shirt removes his specs" \
+  > ./processed_data/<generated_sequence>/prefix.txt
+```
+
+> ⚠️ **This step is required.** The inference script reads `prefix.txt` as the conditioning prompt. Without it, inference will fail or produce incorrect results.
+
+**Step A-4: LoRA 1 Training**
+
+```bash
+NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" \
+  deepspeed --num_gpus=1 train.py --deepspeed \
+  --config ./processed_data/<generated_sequence>/configs/training.toml
+```
+
+> Replace `<generated_sequence>` with the folder name generated under `processed_data/`.
+
+---
+
+### Phase B — Process the Original Video (LoRA 2)
+
+**Step B-1: Foreground Selection & Data Preprocessing**
+
+Launch the preprocessing interface again with the **original video**. Select the **same foreground region** as Phase A.
+
+```bash
+python predata_app.py --port 8890 --checkpoint_dir models_sam/sam2_hiera_large.pt
+```
+
+**Step B-2: LoRA 2 Training**
 
 ```bash
 NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" \
@@ -125,43 +163,6 @@ NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" \
 
 ---
 
-### Phase B — Process the I2V Reference Video (LoRA 1)
-
-**Step B-1: Generate the I2V Reference Video**
-
-Use any Image-to-Video (I2V) model (WAN 2.1, VEO, etc.) with the **first frame of the original video + your edit prompt** to generate a video that contains the desired foreground motion. This video is used **only as a motion reference** — not as the final output.
-
-> Example prompt: *"make the man in the purple shirt remove his specs"*
-
-**Step B-2: Set the Inference Prompt**
-
-After preprocessing the generated video, open the `prefix.txt` file inside its processed data folder and write the prompt that describes the desired edit. This prompt is used during dual-LoRA inference.
-
-```bash
-# Example:
-echo "Generate a video in which man in purple shirt removes his specs" \
-  > ./processed_data/<generated_sequence>/prefix.txt
-```
-
-> ⚠️ **This step is required.** The inference script reads `prefix.txt` as the conditioning prompt. Without it, inference will fail or produce incorrect results.
-
-**Step B-3: Foreground Selection & Data Preprocessing**
-
-Launch the preprocessing interface again with the **generated video**. Select the **same foreground region** as Phase A.
-
-```bash
-python predata_app.py --port 8890 --checkpoint_dir models_sam/sam2_hiera_large.pt
-```
-
-**Step B-3: LoRA 1 Training**
-
-```bash
-NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" \
-  deepspeed --num_gpus=1 train.py --deepspeed \
-  --config ./processed_data/<generated_sequence>/configs/training.toml
-```
-
----
 
 ### Phase C — Link the Two Sequences
 
@@ -197,19 +198,16 @@ The output video will be saved inside `--wan_data_dir`.
 
 ---
 
-## ⚡ Training Cost Reference
+## ⚡ Runtime Reference
 
-All benchmarks are on RTX 4090 at 480P (832×480), trained for 100 steps.
+All benchmarks on a single RTX 4090 (24 GB) at 480P (832×480).
 
-| Frames | Time / Iteration (sec) | VRAM (MB) |
-|:------:|:----------------------:|:---------:|
-| 5      | 7.55                   | 11,086    |
-| 13     | 10.81                  | 12,496    |
-| 21     | 14.79                  | 14,456    |
-| 49     | 31.88                  | 21,522    |
-| 65 †   | 45.71                  | 20,416    |
+| Stage | Time |
+|-------|------|
+| LoRA training (per LoRA, 100 steps) | ~45 minutes |
+| Dual-LoRA inference (41 frames) | ~5 minutes |
 
-<sup>† For 65 frames, `blocks_to_swap` was set to 38 instead of the default 32.</sup>
+> The pipeline runs **two separate LoRA trainings** (one for the I2V reference video, one for the original video), so total training time is approximately **~90 minutes** before inference.
 
 ---
 
@@ -243,6 +241,14 @@ LoRAEdit/
 │       └── inference_mask.mp4
 └── requirements.txt
 ```
+
+---
+
+## 🔭 Future Work
+
+- **Real-time inference optimization** — The current pipeline takes ~5 minutes for a 41-frame video. We plan to optimize the dual-LoRA blending and WAN inference for significantly faster throughput.
+- **Faster LoRA training** — Reducing the ~45 min/LoRA training time through distillation or fewer training steps without quality loss.
+- **Automated foreground consistency** — Automating the foreground mask selection to be consistent across both the original and I2V reference videos.
 
 ---
 
