@@ -33,3 +33,6 @@ diffsynth
 git+https://github.com/facebookresearch/sam2.git
 catboost
 scikit-learn
+opencv-python
+multiprocess
+numpy
