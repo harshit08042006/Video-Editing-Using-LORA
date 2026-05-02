@@ -1,0 +1,38 @@
+{
+  "num_frames_evaluated": 41,
+  "pose_distance": {
+    "pose_distance_mean": 0.4046339667047877,
+    "pose_distance_std": 0.26518952041282606,
+    "frames_with_both_poses": 31,
+    "frames_without_pose": 10,
+    "total_frames": 41
+  },
+  "clip_similarity": {
+    "clip_similarity_mean": 0.7565207684912333,
+    "clip_similarity_std": 0.05036243746536575,
+    "clip_similarity_min": 0.6585246920585632,
+    "clip_similarity_max": 0.9058652520179749,
+    "total_frames": 41
+  },
+  "ssim": {
+    "ssim_mean": 0.3613454829302652,
+    "ssim_std": 0.03868693242973188,
+    "ssim_min": 0.3343931397276533,
+    "ssim_max": 0.5398376515865024,
+    "total_frames": 41,
+    "mask_used": true
+  },
+  "tlpips": {
+    "tlpips_mean": 0.07196399020031094,
+    "tlpips_std": 0.05340357639548481,
+    "tlpips_min": 0.004223451018333435,
+    "tlpips_max": 0.18781957775354385,
+    "total_frame_pairs": 40
+  },
+  "fid": {
+    "fid_score": 253.4432106302271,
+    "num_original_frames": 41,
+    "num_edited_frames": 41,
+    "feature_dim": 2048
+  }
+}
